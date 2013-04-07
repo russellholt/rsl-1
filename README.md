@@ -16,8 +16,10 @@ granite foundation.
 
 ## why does this exist
 
-the original vision for rsl was to be a scripting language specifically designed to write web
-applications. It was mean to minimize the need to deal directly with the details of HTTP or HTML.
+the original vision for rsl was to be a special purpose language for web applications. It was meant
+to minimize the need to deal directly with the details of HTTP or HTML. The language itself can be
+thought of as an object messaging framework for C++ that also happens to have its own syntax,
+grammar.
 
 ## this is dead software
 
