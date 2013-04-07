@@ -1,0 +1,138 @@
+#!/bin/csh
+#########################################################################
+#              RMG Server Admininstration
+#------------------------------------------------------------------------
+#
+# Options:
+#
+#	-shutdown     seconds till all servers shut down
+#
+#	-logsystems   subsystems to log (a-g, see documentation)
+#
+#	-loglevel     1-6; 1 = Fatal, 2= Alert, ..., 6 = Debug
+#
+#	-maxusers     maximum users. Set to 0 to disallow new logins.
+#
+#	-create       specify output filename (default: reconfig.rsl)
+#                 The filename that the server looks for is
+#                 specified by the variable ReconfigFile in
+#                 the _a*.rsl server config file.
+#
+#   -p            print reconfig script only (do not reconfigure servers)
+#
+#------------------------------------------------------------------------
+#     Copyright 1996 Destiny Software Corporation
+##########################################################################
+
+# reconfig output script name (override with -f option)
+set fname = reconfig.rsl
+
+#
+# Set options
+#
+
+while ($#argv)
+	if ($1 == "-h") then
+		echo "rmgserver administration"
+		echo "Usage: $0 [options]"
+		echo "Options are:"
+		echo "  -shutdown     seconds till all servers shut down"
+		echo
+		echo "  -logsystems   subsystems to log (a-g inclusive, see documentation)"
+		echo
+		echo "  -loglevel     0-6; 0 = Emergency, 1 = Fatal, 2= Alert, ..., 6 = Debug"
+		echo
+		echo "  -maxusers     maximum users. Set to 0 to disallow new logins."
+		echo
+		echo "  -create       specify output filename (default: reconfig.rsl)"
+		echo "                   The filename that the server looks for is"
+		echo "                   specified by the variable ReconfigFile in"
+		echo "                   the _a*.rsl server config file."
+		echo
+		echo "  -p            print (and write) reconfig script file only"
+		echo "                   (do not reconfigure servers)"
+		exit
+	endif
+
+	if ($1 == "-create") then
+		set fname = $2
+		shift; shift
+	endif
+
+	if ($1 == "-shutdown") then
+		set sdt = $2
+		set mu = 0
+		# echo ShutdownTime = $sdt\;
+		# echo MaxUsers = $mu\;
+		shift; shift
+	endif
+
+	if ($1 == "-logsystems") then
+		set lws = $2
+		# echo LogWhichSystems = \"$lws\"\;
+		shift; shift
+	endif
+
+	if ($1 == "-maxusers") then
+		set mu = $2
+		# echo maxusers = \"$mu\"\;
+		shift; shift
+	endif
+
+	if ($1 == "-loglevel") then
+		set ll = $2
+		# echo LogLevel = $ll\;
+		shift; shift
+	endif
+
+	if ($1 == "-p") then
+		set printonly
+		shift
+	endif
+end
+
+##########################
+# Write output file
+##########################
+
+if ($?sdt || $?mu || $?lws || $?ll) then
+	if (! $?fname) then
+		set fname = "reconfig.rsl"
+	endif
+
+	if (-e $fname) then			# if file exists, delete it
+		rm $fname
+	endif
+
+	echo DynamicConfig \{ >> $fname
+	if ($?mu) then
+		echo MaxUsers = $mu\; >> $fname
+	endif
+
+	if ($?sdt) then
+		echo ShutdownTime = $sdt\; >> $fname
+	endif
+
+	if ($?lws) then
+		echo LogWhichSystems = \"$lws\"\; >> $fname
+	endif
+
+	if ($?ll) then
+		echo LogLevel = $ll\; >> $fname
+	endif
+	echo \} >> $fname
+
+	###############################################################
+	# Tell all rmgservers to read & execute the reconfigure script.
+	###############################################################
+	if ($?printonly) then
+		cat $fname
+	else	# rmgreconfig
+		rmgreconfig
+	endif
+
+endif
+
+echo
+echo
+

@@ -1,0 +1,353 @@
+
+
+RESOURCE NAME: Boolean
+
+RELATED RESOURCES:
+
+DESCRIPTION: a boolean value
+
+PUBLIC MEMBER FUNCTIONS:
+
+	Boolean
+		boolean value of a resource or an expression (eg, cast)
+
+	=
+		assignment
+
+	!
+		logical NOT
+
+	==
+		equal to
+
+	!=
+		not equal to
+
+	&&, and (...)
+		logical AND
+
+	||, or (...)
+		logical OR
+		
+
+
+RESOURCE NAME: List
+
+RELATED RESOURCES:
+
+DESCRIPTION: an Integer. Range is -2147483647 to +2147483647
+
+PUBLIC MEMBER FUNCTIONS:
+
+	=
+		Assignment
+	
+	+, -, *, /
+		Standard mathematical operations
+		
+	+=, -=, *=, /=
+		As in C,
+			a = a + 5;
+		is effectively equivalent to, but less efficient than,
+			a += 5;
+
+	++
+	--
+		Increment/decrement the integer by one. Unary operators (no arguments)
+	
+	==, !=, <, >, <=, >=
+		Standard comparisons
+		
+	%, %=
+		modular arithmetic
+
+	String text()
+		return a String version of the Integer value.
+		
+	string(String s)
+		Set the Integer value from a String conversion.
+
+	
+
+
+RESOURCE NAME: List
+
+RELATED RESOURCES:
+
+DESCRIPTION: a list of resources
+
+PUBLIC MEMBER FUNCTIONS:
+	
+	
+	Assign(List L)
+	=
+		Assign this list to L. Clears the previous contents. If argument is not a List, then that element becomes the sole resource in the List.
+
+	Append(...)
+	Add(...)
+		Append argument(s) to the end of the list.
+
+	Prepend(...)
+	Insert(...)
+		Insert argument(s) to the front of the list. Note that mylist.prepend(a, b, c, d); will result in the arguments appearing in the list in the reverse order that they are in the argument list (because it first prepends a, then b, ...)
+	
+	Integer Length
+		return Integer length of the list.
+
+	Distribute, DistributeType (<TYPE>, String method, arg1, arg2, ..., argn)
+		apply method and remaining arguments to each element of the list. Only if the element matches the given type.
+		
+		Example:
+			List x;
+			x.append("one", "two", "three", "eleven");	// it goes to eleven.
+
+			// Capitalize each String element.
+			x.distribute(String, "Capitalize");
+			
+	DistributeAll (String method, arg1, arg2, ..., argn)
+		Same as Distribute, DistributeType, except the method is applied
+		to all resources in the List.
+
+		Example:
+		
+			// append " and..." to each element of x.
+			x.distributeAll("append", " and...");
+
+	Assoc(List L, String method)
+		For each element `en' of the List, apply method `method' with element
+		Ln of the argument List L. Return a List of the results.
+
+		Example:
+			suppose this List is {e1, e2, e3}
+			and L is {L1, L2, L3}.
+			Then the results table is { e1.m(L1), e2.m(L2), e3.m(L3) }
+
+		Real example:
+			List x, a, r;
+			x.append("string 1", "string 2", "string 3");
+			a.append("1", "2", "3");
+			r = x.Assoc(a, "contains");	// match a with x via "contains"
+			if (r.AllTrue())
+				out.print("Matched successfully.");
+			else
+				out.print("Nope.");
+
+		If the lists are of different lengths, the mapping stops for the
+		shorter of the two lists.
+	
+	Print
+		Print the list. Optional String argument serves as a delimiter
+		to be printed between items such as "\n" for a vertical column,
+		", " for a `list', etc.
+
+	[]
+	Index
+		List element access. Two argument types:
+			String:  return named element.
+			Integer: return element at that index # (zero based)
+	Example:
+		List l;
+		l.append(1, a:2, 3, 4);
+		out.print("zero element: ", l[0], endl);	// gives 1
+		out.print("element 'a': ", l["a"], endl);	// gives 2
+		out.print("element # 2: ", l[2], endl);	// gives 3
+
+	DeleteByName(String name)
+		Delete named element from the list.
+
+	DeleteByValue(String value)
+		Delete element from the list whose String value is the same as
+		the String value of the argument.
+
+	DeleteByIndex(Integer index)
+		Delete element from the list at position `index'.
+
+	AllTrue
+		return true if all list elements evaluate to true.
+
+	AllFalse
+		return true if all list elements evaluate to false.
+
+	Clear
+		removes elements from the list (does not destroy them)
+		
+	ClearAndDestroy
+		delete all elements from the list and destroy them.
+
+
+
+
+RESOURCE NAME: String
+
+RELATED RESOURCES:
+
+DESCRIPTION: a string
+
+PUBLIC MEMBER FUNCTIONS:
+	
+	assign(R)
+	=
+		Set the value of this string to the value of R.
+
+	append(...)
+	+=
+		Append the value of the given resource(s) to this String.
+
+	prepend(...)
+		Prepend this String with the value of a resource.
+
+	+
+		return a new String that is the concatenation of
+		this resource and the value of R
+
+	gsub(String pattern, String replacement)
+		substitute every occurrence of `pattern' with 'replacement'
+		(`gsub' stands for `global substitute').
+
+	contains(...)
+	containsOr(...)
+		Determine if this String contains one or more of the
+		arguments as substring patterns. Return true if so, false if not.
+
+	containsAnd(...)
+		Determine if this String contains ALL of the arguments
+		as substring patterns. Return true if so, false if not.
+
+	List split(String delimiter)
+		extract substrings, separated by the given
+		delimiter (String representation), and return them in a List.
+		Example:
+			String s;
+			List l;
+			s = "one/two/three";
+			l = s.split("/");
+			// l now has three elements: "one", "two", "three".
+
+	Integer freq(String pattern)
+		return an Integer giving the number of non-overlapping
+		occurrences of `pattern'.
+
+	before (String pattern)
+		Return the String preceding the first occurence of `pattern'
+
+	after
+		Return the String following the first occurence of `pattern'
+
+	upcase
+		Make all letters of this String uppercase
+		
+	getupcase
+		Return a copy of this String with all uppercase letters.
+		
+	downcase
+		Make all letters of this String lowercase
+		
+	getdowncase
+		Return a copy of this String with all lowercase letters.
+		
+	reverse
+		Reverse this String.
+		
+	getreverse
+		Return the reverse of this String
+		
+	capitalize
+		Upcase The First Letter Of Each Word
+		
+	getcapitalize
+		Return a copy of this String with all first letters capitalized.
+		
+	rot13
+		rot13 this String, that is, for each letter i where 'a' = 1,
+		'b' = 2, etc, inew = (i+13) mod 26
+		
+	getrot13
+		return a copy of the rot13 version of this String.
+		
+	var
+		return a String of the form:
+		<variable name> = "<string value>"
+
+	Comparison: ==, <, >, <=, >=, !=, &&, ||
+		Normal string comparison, case sensitive.
+			Eg, "A" < "B", "abc" > "a", "1000" < "2"
+		Boolean operators (&&, ||) use the length of the
+		String. Eg, "abc" && "" is false while "abc" || "" is true.
+		This is useful to determine if a value has been set.
+
+
+
+RESOURCE NAME: File
+
+RELATED RESOURCES: Output, String, List
+
+DESCRIPTION: `File' represents a file on disk. It provides the basic I/O
+	of read/write/append. Other resources, such as Output, String, and
+	List, know how to intelligently read/write Files to provide
+	convenient file system access. Finally, a simple searching
+	facility is provided for the "bottom line" database file format:
+	one record per line / tab delimited fields.
+
+PUBLIC MEMBER FUNCTIONS:
+
+	File(String fname)
+		Set the filename. This may be used indirectly, as in:
+
+			// print file "stuff.txt"
+			out.print(File("stuff.txt"));
+
+			// read "stuff.txt" into a List, one String per line:
+			List l;
+			l << File("stuff.txt");
+
+			// read "stuff.txt" into one String:
+			String s;
+			s << File("stuff.txt");
+		
+		or it may be used directly, as in:
+			File f;
+			f.file("stuff.txt");
+			out.print(f);
+
+	open(String name, String mode)
+		Open a file by name. Mode is one of "read", "write", "append".
+		At this time, "read" is not supported since there is no
+		direct "read" method; a file may only be read in its entirety
+		(see the "file" method).
+
+	close
+
+	write(...)
+		Write given resources to the file, according to the mode
+		as given in a previous open.
+
+	append, <<
+
+	searchand
+
+	searchor
+
+
+
+
+RESOURCE NAME: Output
+
+RELATED RESOURCES:
+
+DESCRIPTION: Output to the terminal or a stream.
+
+	In the RSL system, the global variable `out' represents
+	output to the terminal.  While only two functions are currently
+	supported, this will become the basis for a general stream output
+	system in the future.
+
+PUBLIC MEMBER FUNCTIONS:
+
+	print(...)
+		Prints each resource in the argument list.
+
+		Examples:
+			out.print("The result is: ", x, "\n\n");
+			out.print(File("file.txt"));
+ 	
+

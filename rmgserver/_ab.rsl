@@ -1,0 +1,56 @@
+// ================================================================
+// NAME:  _a32008.rsl
+//
+// PURPOSE: App initialization, entry port settings, declarations
+//
+// USAGE:
+//
+// PROGRAMMING NOTES:
+//
+// HISTORY
+// 	960301 JCB Original Implementation
+//
+// Copyright 1996 by Destiny Software Corporation 
+// ================================================================
+// Logging systems:
+//  a: RMG protocol
+//  b: server
+//  c: resource handler/application/csap objects
+//  d: significant resources (ie, VHB)
+//  e: rsl system
+//  f: application rsl scripts
+//  g: rmg protocol traffic only
+
+Main
+{
+	Port = 32010;
+	LogLevel = 6;
+	LogWhichSystems = "bcdg";
+	MaxIdleTime = 165;
+	MaxUsers = 3;
+	MaxUserMessage = "Sorry - the server isn't accepting connections at this time.";
+	ReconfigFile = "/mongo/home/holtrf/rmgs/reconfig.rsl";
+	TotalAppsAllowed = 3;
+
+	Status.LoadFile("/mongo/dest/rsl/status_messages");
+
+	App HomeBanking;	// The Application
+	Form 	f10,  f20,  f24, f30,  f30d, f50;
+	Form	f100, f110, f120, f121, f122, f130, f131;
+	Form	f140, f141, f142, f143, f144, f150, f151, f152, f153, f154, f155;
+	Form    f160, f160b, f161, f162, f163, f164;
+	Form	f200, f210, f211, f212, f213, f214, f215, f216;
+	Form	f220, f221, f230, f231, f232, f233, f234, f235;	
+	Form	f240, f241, f242, f243, f244, f245, f246, f247;
+	Form	f250, f251, f252, f253, f254, f255;
+	Form	f260, f261, f262, f263, f264;
+	Form	f300, f310, f311, f312, f313, f314, f315, f316;
+	Form	f320, f321, f330, f331, f332, f333, f334;	
+	Form  	f400, f410, f411, f412, f413, f414, f420, f421, f422, f423, f424;
+	Form	f430, f431, f440, f441, f450, f451;
+	Form 	fTimeout;
+
+	StartupApp = "HomeBanking";	// Where to start
+
+	VHB.AddIP("204.120.87.10",5001);
+}

@@ -1,0 +1,72 @@
+rmgserver global variables
+--------------------------
+Reconfigurable variables are indicated by (*)
+
+Integer Port;
+	TCP/IP port to listen for incoming connections.
+
+String LogWhichSystems; (*)
+	default "abcdefg" (all systems on)
+	Server subsystems to log messages. Each system is indicated by a
+	letter; order is not important. Values are:
+
+		a: protocol
+		b: server
+		c: resource handler/application/csap objects
+		d: major system resources (ie, VHB)
+		e: rsl language system
+		f: application rsl scripts
+		g: Protocol traffic only
+
+
+Integer LogLevel; (*)
+	default 4 (notice)
+	Severity threshold below which server messages will be logged.
+
+		6 = debug:     Programmer interest only.
+		5 = info:      Periodic information.
+		4 = notice:    Semi-important, non-error, normal events.
+		3 = alert:     Infrequent, possibly unexpected, but important events.
+		2 = error:     Something went wrong; RSL argument mismatch or other error.
+		1 = fatal:     Bad error; server is going to die.
+		0 = emergency: Panic!
+
+Integer MaxUsers; (*)
+	default 200
+	Maximum allowed number of concurrent users. When the system is trying to
+	shutdown, ie, when signaled by the `rmgadmin' program, this value is
+	set to zero.
+
+String MaxUserMessage; (*)
+	default "Maximum user limit reached"
+	Message that is sent in an alert to each user that attempts to connect
+	when the system is "full" (MaxUsers).
+
+Integer TotalAppsAllowed; (*)
+	default 100
+	Total number of users the system will see before the server will want
+	to shut down. Shutdown will commence when the number of active user
+	sessions drops to zero.
+	
+	If this value is zero, then there is no upper bound.
+
+Integer MaxIdleTime; (*)
+	default 160
+	Default resource idle time before a Timeout event is sent to the resource.
+	This is overridden by the RegisterTimeout method. (See `App').
+
+Boolean DebugTitles; (*)
+	default false
+	true = Window titles are formatted as "<systemID> : <instanceID> <title>"
+	false = regular titles.
+
+Integer ShutdownTime; (*)
+	default -1 (ie: do not shutdown)
+	Seconds till all rmgservers shutdown.
+
+String ReconfigFile;
+	default "reconfig.rsl".
+	Name of the dynamic configuration file (RSL) to run when
+	signaled by the `rmgadmin' script.
+
+

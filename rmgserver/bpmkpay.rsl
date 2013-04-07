@@ -1,0 +1,525 @@
+//$bpmkpay.rsl$
+// ================================================================
+// NAME:  	bpmkpay.rsl
+//
+// PURPOSE: 
+//    	HomeBanking Make Payment function
+//
+// USAGE:
+//	Contains forms 210-216
+//
+// Copyright 1996 by Destiny Software Corporation 
+// ================================================================
+
+// ================================================================
+// form 210 =======================================================
+// ----------------------------------------------------------------
+// Comments :
+// ================================================================
+f210::Create
+{
+	f210.SetSysID("3545");
+	f210.Title("Make Payments: Select Account");
+
+	f210.AddEvent(event:"SelectItem",                 f210.Select);
+	f210.AddEvent(event:"Action",     item:"Default", f210.Select);
+	f210.AddAutoEvent(event:"action", item:"1003",    "NextForm", "f200", order:"open,close");
+}
+
+f210::Setup
+{
+	ListBox	lbAcctList;
+	String 	sText;
+	List	tmp;
+
+	f210.UseAppEvents(true);
+	lFromAccount.Clear();
+
+	//  Get Account List for only checking accounts
+
+	stResult = Tandem.GetAccounts("checking", lFromAccount);
+
+	if (stResult == 0)
+	{				// GetAccounts succeeded
+
+		// If more than 1 checking account, then open form and
+		// display list so that customer can make selection.
+
+		if (1 < lFromAccount.Length())
+		{
+			f210.Open();			// Display f210
+			HomeBanking.Close("f200");  
+
+			lbAcctList = lFromAccount;
+			tmp = lbAcctList.format("%-12s  %-10s  %15m  ", 
+				       "nickname", "number", "currentbalance" );
+			lbAcctList.windowsize(iWindowSize);	// Set window size.
+			tmp.ClearAndDestroy();      // Free temporary list resource
+
+			f210.sendList(field:"1", lbAcctList, icon:"9");	
+		}
+		else
+		{
+			if ( 0 == lFromAccount.Length() )
+				HomeBanking.Alert("No checking accounts found.");
+			else
+			{
+				// Else, there is only 1 checking account.
+				// Select it as default & move onto next form.
+
+				iSelAccount = 0;  
+				HomeBanking.initobject("f211");
+				HomeBanking.Close("f200");  
+			}
+			HomeBanking.close("f210");  
+		}
+ 	}
+	else	
+	{
+		subProcessError();
+		HomeBanking.close("f210");  
+	}
+}
+
+f210::Select
+{
+	iSelAccount = EventItem;
+
+	HomeBanking.initobject("f211"); 
+	HomeBanking.close("f210");
+}
+
+// ================================================================
+// form 211 =======================================================
+// ----------------------------------------------------------------
+// Comments :
+// ================================================================
+f211::Create
+{
+	f211.SetSysID("3511");
+	f211.Title("Make Payments: Select Payee");
+
+	f211.AddAutoEvent(event:"action", item:"1003",    "NextForm", "f200", order:"open,close");
+	f211.AddEvent(event:"SelectItem",                  f211.Select);	
+	f211.AddEvent(event:"action",     item:"Default",  f211.Select);	
+	f211.AddEvent(event:"action",     item:"1012",     f211.More);
+}
+
+f211::Setup	 
+{
+	ListBox	lbPayList;
+	String 	sText;
+	List	tmp;
+
+	f211.UseAppEvents(true);
+	lPayee.Clear();
+
+	stResult = Tandem.GetPayees(lPayee);	// Get list of payees
+
+	if (stResult == 0)
+	{					// GetPayees succeeded
+		// If there is at least 1 payee, then open form & display list
+
+		if (0 < lPayee.Length())
+	 	{
+			f211.open();
+
+			//  Sort Payee list
+
+			lbPayList = lPayee.sort("nickname");
+			lbPayList.WindowSize(lPayee.length());
+			lPayee.Clear();
+			lPayee = lbPayList;
+
+			tmp = lbPayList.format("%-12s %-16s %-22s", "nickname",
+					       "abbrevname", "accountnumber" );
+			lbPayList.windowsize(iWindowSize);
+			tmp.ClearAndDestroy();      // Free temporary list resource
+
+			f211.sendList(field:"1", lbPayList, icon:"9");
+	
+			if (lbPayList.NextWindow())
+				f211.enable("3");	// Enable More button
+			else
+				f211.disable("3");	// Disable More buttom
+		}
+		else
+		{
+			HomeBanking.Alert("You have no payees linked to this account.");
+			HomeBanking.open("f200");	
+ 			HomeBanking.close("f211");
+		}
+	}
+	else	
+	{
+		subProcessError();
+		HomeBanking.open("f200");
+		HomeBanking.Close("f211");
+	}
+}
+
+f211::More
+{
+	f211.sendList(field:"1", lbPayList, icon:"9");
+	if (lbPayList.NextWindow())
+		f211.disable("3");
+	else
+		f211.disable("3");
+}
+
+f211::Select
+{
+	iSelPayee = EventItem;
+
+	HomeBanking.open("f212");	
+	HomeBanking.close("f211");
+}
+
+// ================================================================
+// form 212 =======================================================
+// ----------------------------------------------------------------
+// Comments :
+// ================================================================
+f212::Create
+{
+
+	f212.SetSysID("3520");
+	f212.Title("Make Payments: Enter Amount and Date");
+
+	f212.AddEvent(event:"input",               f212.Input);
+	f212.AddEvent(event:"action", item:"1004", f212.OK);	
+	f212.AddEvent(event:"action", item:"Default", f212.OK);	
+	f212.AddEvent(event:"action", item:"1003", f212.Cancel);
+}
+
+f212::Setup
+{
+        String  	sToday;
+        String  	sYear;
+        DateTime 	dToday;
+        Boolean 	bInputErr;
+ 	String 		sText;
+        BOA_Payee 	tPayee;
+        BOA_Account	fAcct;
+	String		sAmount;
+	String		sDate;
+
+	f212.UseAppEvents(true);
+	sLastOpenNonModal = "f212";
+
+        tPayee = lPayee[iSelPayee];
+        fAcct = lFromAccount[iSelAccount];
+
+	sText = "How much would you like to pay  ";
+	sText.append( tPayee.nickname() );
+	sText.append(" from ");
+	sText.append( fAcct.nickname() );
+	sText.append( " " );
+	sText.append( fAcct.number() );
+	sText.append( "?" );
+
+	f212.DisplayItem(field:"1", type:"text", sText);
+
+        dToday = System.Today();
+        sToday = dToday.format();
+ 
+        f212.DisplayItem(field:"2", type:"text", sToday);
+}
+
+f212::Input
+{
+	DateTime dTransDate;
+
+	sAmount = EventData["3"];
+	sDate =   EventData["2"];
+
+	bInputErr = false;
+	if (false == sAmount.CashValid())
+	{
+		HomeBanking.Alert("Invalid amount entered.  Please try again.");
+		f212.DisplayItem(field:"3", type:"text", "");
+		bInputErr = true;
+	}
+	else
+	{
+		dTransDate = sDate;
+
+		if (dTransDate)
+		{
+			sDate = dTransDate;  // get validated date
+			if ( sDate == sToday )
+			{
+				sDate = "T";
+			}
+		}
+		else
+		{
+			HomeBanking.Alert("Invalid date format entered.  Please re-enter the date in MM/DD/YY format.");
+			f212.DisplayItem(field:"2", type:"text", sToday);
+			bInputErr = true;
+		}
+	}
+}
+
+f212::OK
+{
+	Integer		iPayeePos;
+	Integer		iAcctPos;
+	Boolean		bOtherError;
+	String		sTransDate;
+
+	if (!bInputErr)
+	{
+		iPayeePos = tPayee.position();
+		iAcctPos = fAcct.position();
+
+		stResult = Tandem.SchedulePayment(lFromAccount[iSelAccount], iAcctPos, lPayee[iSelPayee], iPayeePos, sDate, sAmount, btTransaction);
+
+		if (stResult == 50)  // CAAD_PB05
+		{
+			bBump = false;
+
+			sTransDate =  btTransaction.date();
+			if (sDate == "T")
+			{
+				if (sTransDate != sToday)
+				{
+					bBump = true;
+				}
+			}
+
+			HomeBanking.open("f213");	
+			HomeBanking.close("f212");
+		}
+		else
+		{
+			if (stResult == 51) // CAAD_PB06
+			{
+				bBump = true;
+				HomeBanking.open("f213");	
+				HomeBanking.close("f212");
+			}
+			else
+			{
+				if (stResult == 2) // GENRL_ERR1
+				{
+					HomeBanking.Alert("Invalid entry. Please try again.");
+				}
+				else
+				{
+            				if (stResult == 102)
+						Tandem.CurrentPaymentConfirm("N", sReference);
+            				subProcessError();
+				}
+			}
+
+		}
+	}
+}
+
+f212::Cancel
+{
+	HomeBanking.initobject("f216");
+}
+
+// ================================================================
+// form 213 =======================================================
+// ----------------------------------------------------------------
+// Comments :
+// ================================================================
+f213::Create
+{
+	f213.SetSysID("3521");
+	f213.Title("Make Payments: Confirmation");
+
+	f213.AddEvent(event:"action", item:"Default", f213.PayIt);	
+	f213.AddEvent(event:"Action", item:"1025",    f213.PayIt);
+	f213.AddEvent(event:"Action", item:"1026",    f213.DontPay);
+}
+
+f213::Setup
+{
+        BOA_Payee toPayee;
+        BOA_Account fromAcct;
+        String  mlText;
+	String sText;
+
+	sLastOpenNonModal = "f213";
+	f213.UseAppEvents(true);
+
+        toPayee = lPayee[iSelPayee];
+        fromAcct = lFromAccount[iSelAccount];
+
+	mlText = "";   
+
+	btTransaction.format("  From %-12s %-11s", "fromnickname", "fromacctnum"); 
+	mlText.append(btTransaction);
+        btTransaction.format("\  Pay  %-12s %-16s", "tonickname", "payeeabbrevname");
+	mlText.append(btTransaction);
+        btTransaction.format("\                    %-20s", "toacctnum");
+	mlText.append(btTransaction);
+        btTransaction.format("\  On   %8s     %-13m", "date", "amount" );
+	mlText.append(btTransaction);
+
+	if (bBump)
+	{
+		mlText.append("\\Please note that the payment date has been moved to the next business day.");
+		bBump = false;
+	}
+
+        f213.DisplayItem(field:"2", type:"text", mlText);
+}
+
+f213::DontPay
+{
+	stResult = Tandem.CurrentPaymentConfirm("N", sReference);
+		
+	if (stResult == 53) //CAAD_PB08
+		HomeBanking.initobject("f216");
+	else
+	{
+		subProcessError();
+		HomeBanking.open("f200");
+		HomeBanking.close("f213");
+	}
+}
+
+f213::PayIt
+{
+	HomeBanking.initobject("f214");	
+}
+
+// ================================================================
+// form 214 =======================================================
+// ----------------------------------------------------------------
+// Comments :
+// ================================================================
+f214::Create
+{
+	f214.SetSysID("3541");
+
+	f214.AddEvent(event:"Action", item:"1101", f214.Yes);
+	f214.AddEvent(event:"Action", item:"1102", f214.No);
+}
+
+f214::Setup
+{
+	f214.Open();
+	f214.DisplayItem(field:"1", type: "text", 
+	  "Are you sure you want to make this payment?");
+}
+
+f214::Yes
+{
+	stResult = Tandem.CurrentPaymentConfirm("Y", sReference);
+		
+	if (stResult == 52) //CAAD_PB07
+	{
+		HomeBanking.close("f214");
+		HomeBanking.initobject("f215");
+	}
+	else
+	{
+		subProcessError();
+		HomeBanking.open("f200");
+		HomeBanking.close("f214");
+		HomeBanking.close(sLastOpenNonModal);
+	}
+}
+
+f214::No
+{
+	stResult = Tandem.CurrentPaymentConfirm("N", sReference);
+		
+	if (stResult == 53) //CAAD_PB08
+	{
+		HomeBanking.close("f214");
+		HomeBanking.initobject("f216");
+	}
+	else
+	{
+		subProcessError();
+		HomeBanking.open("f200");
+		HomeBanking.close("f214");
+		HomeBanking.close(sLastOpenNonModal);
+	}
+}
+
+// ================================================================
+// form 215 =======================================================
+// ----------------------------------------------------------------
+// Comments :
+// ================================================================
+f215::Create
+{
+	f215.SetSysID("3541");
+
+	f215.AddEvent(event:"Action", item:"Default", f215.Yes);
+	f215.AddEvent(event:"Action", item:"1101", f215.Yes);
+	f215.AddEvent(event:"Action", item:"1102", f215.No);
+}
+
+f215::Setup
+{
+	String	sText;
+
+	sText = "Thank you.  Your payment has been scheduled with transaction number ";
+	sText += sReference + ".  \Would you like to make another payment?";
+	
+	f215.DisplayItem(field:"1", type:"text", sText);
+}
+
+f215::Yes
+{
+	HomeBanking.initobject("f210");
+	HomeBanking.close("f215");
+
+	HomeBanking.close(sLastOpenNonModal);
+}
+
+f215::No
+{
+	HomeBanking.open("f200");
+	HomeBanking.close("f215");
+
+	HomeBanking.close(sLastOpenNonModal);
+}
+
+// ================================================================
+// form 216 =======================================================
+// ----------------------------------------------------------------
+// Comments :
+// ================================================================
+f216::Create
+{
+	f216.SetSysID("3541");
+
+	f216.AddEvent(event:"Action", item:"1101", f216.Yes);	
+	f216.AddEvent(event:"Action", item:"1102", f216.No);	
+	f216.AddEvent(event:"Action", item:"Default", f216.No);	
+}
+
+f216::Setup
+{
+	f216.open();
+	f216.DisplayItem(field:"1", type:"text",
+	    "OK.  Your payment will not be scheduled.  \Would you like to make a different bill payment?");
+}
+
+f216::Yes
+{
+	HomeBanking.initobject("f210");
+	HomeBanking.close("f216");
+
+	HomeBanking.close(sLastOpenNonModal);
+}
+
+f216::No
+{
+	HomeBanking.open("f200");
+	HomeBanking.close("f216");
+
+	HomeBanking.close(sLastOpenNonModal);
+}
+
+

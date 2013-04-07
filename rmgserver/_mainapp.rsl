@@ -1,0 +1,786 @@
+//$_mainapp.rsl$
+// ================================================================
+// NAME:     _mainapp.rsl
+// 
+// PURPOSE:     main level HomeBanking RSL app definition
+//
+// USAGE:
+//    Concatenate as first file in rmgserver arguments
+//
+//    Contains forms 20, 30, 30d, 100, 200, 300, 400
+//
+// Copyright 1996 by Destiny Software Corporation 
+// ================================================================
+
+HomeBanking::Create
+{
+    HomeBanking.AddEvent(event:"UserData", HomeBanking.OpenFirst);
+    HomeBanking.AddEvent(event:"Timeout",             HomeBanking.AppTimeout);
+    HomeBanking.AddEvent(event:"Quit",                HomeBanking.QuitSession);
+
+    HomeBanking.AddEvent(event:"LastWindowClosed",    HomeBanking.LastWinClosed);
+    HomeBanking.AddEvent(event:"Action", item:"1010", HomeBanking.SignOff);
+    HomeBanking.AddEvent(event:"Action", item:"1001", HomeBanking.MainMenu);
+    HomeBanking.AddEvent(event:"Action", item:"1005", HomeBanking.QuickBal);
+    HomeBanking.AddEvent(event:"Action", item:"1006", HomeBanking.AcctInfo);
+    HomeBanking.AddEvent(event:"Action", item:"1007", HomeBanking.BillPmt);
+    HomeBanking.AddEvent(event:"Action", item:"1008", HomeBanking.Xfer);
+    HomeBanking.AddEvent(event:"Action", item:"1009", HomeBanking.CustServ);
+}
+
+HomeBanking::Setup
+{
+    String ThisAppID;
+    VHB     Tandem;
+
+//Application variables
+    String  sUser;              // VCN ID
+    String  sPIN;               // VCH Passcode
+    Status  stResult;           // global status object for VHB response
+
+    Boolean bSignedOn;              // Does the user have a Tandem session?
+    Boolean bPendingTransaction;    // Pending transaction flag
+    Boolean bBump;                  // Bump to next bus day flag
+    Boolean bTimeout;               // Timeout flag
+    Boolean bGlobalError;           // Global Error flag  (used?)
+    Boolean bDemoUser;              // Demonstration account flag
+    Boolean bNoData;                // Used by Form 121 functions.
+    Boolean bTransConfirm;          // transaction confirmed flag
+
+    String  sEventData;             // Generic string for user entered data
+    String  sLastOpenNonModal;      // last open non-modal form to close
+
+    String  sMessage;           // general use message string
+    String  sEMessage;          // general use message string
+    String  sBanner;            // general use banner string
+
+    Integer iSelAccount;        // selected account
+    Integer iSelAccount2;       // selected account
+    Integer iSelPayee;          // Selected payee id
+    Integer iSelItem;           // Selected item
+
+    List    lFromAccount;       // generic account 1
+    List    lToAccount;         // generic account 2
+    List    lCollector;         // generic collection list - form 121
+
+    List    lPayee;             // payee list
+    String  sAccount;           // acccount descriptor
+
+    String  sInitial;           // Add payee - billing name component
+    String  sLName;             // Add payee - billing name component
+
+    BOA_Tran btTransaction;        
+    String   sReference;        // reference number
+    String   sCurrentCycle;     // current checking cycle description
+    Integer  iCurrentCycle;     // current checking cycle index
+    ListBox  lbox;              // generic list box
+    TextBox  tbox;              // generic text box
+    Integer  iWindowSize;       // list/text box max lines per screen
+    Integer  iEntry;		// hold entry value, 1=Customer, 2=Demo
+
+    String Name;                // user's AOL screen name
+    String Speed;               // user's line speed
+
+//Application Setup
+    ThisAppID = InstanceID;
+    sEMessage = "";
+    bTimeout = false;        // initialize timeout
+    bDemoUser = false;
+    iEntry = EventData["Entry"]; // Get entry data passed by .n from AOL
+    HomeBanking.RegisterTimeout(350);
+
+    HomeBanking.GetUserData();
+    bTransConfirm = false;
+
+    iWindowSize = 50;        // For testing only - set from USERDATA
+
+    // Moved to HomeBanking::OpenFirst so as to send the screen name
+    //    Tandem.MakeConnection();
+}
+
+HomeBanking::OpenFirst
+{
+    Name = EventData["Name"];
+    Speed = EventData["Speed"];
+
+    // moved here from HomeBanking::Setup
+    stResult = Tandem.MakeConnection(Name);
+    if (stResult != 0)
+        subProcessError();
+
+    if (iEntry==1)    			// Customer Entry Point Requested 
+    {
+      HomeBanking.Open("f20");
+    }
+    else
+    {
+      if (iEntry == 2)   		// Demo Entry Point Repuested
+      {
+        stResult = Tandem.Login("demo", "bank", Name);
+        if(stResult==0)
+        {
+          Tandem.ResgisterTimeout(165);
+          HomeBanking.Open("f30d");
+        }
+        else
+        {
+          HomeBanking.Alert("HomeBanking Demo not available at this time. Please try again later.");
+          Tandem.DropConnection();
+          HomeBanking.Exit();
+        }
+      }
+      else  			// Invalid entry point. Send user to f20.
+        HomeBanking.Open("f20");
+    }
+}
+
+HomeBanking::MainMenu
+{
+    subMainMenu();
+}
+
+subMainMenu
+{
+    if ( bDemoUser )
+    {
+        HomeBanking.open( "f30d" );
+        HomeBanking.closeall( f30d );
+    }
+    else
+    {
+        HomeBanking.open( "f30" );
+        HomeBanking.closeall( f30 );
+    }
+}
+
+HomeBanking::QuickBal
+{
+    if (EventObject != "f50")
+    {
+        HomeBanking.open( "f50" );
+        HomeBanking.closeall( f50 );
+    }
+}
+
+HomeBanking::AcctInfo
+{
+    if (EventObject != "f100")
+    {
+        HomeBanking.open( "f100" );
+        HomeBanking.closeall( f100 );
+    }
+}
+
+HomeBanking::BillPmt
+{
+    if (EventObject != "f200")
+    {
+        HomeBanking.open( "f200" );
+        HomeBanking.closeall( f200 );
+    }
+}
+
+HomeBanking::Xfer
+{
+    if (EventObject != "f300")
+    {
+        HomeBanking.open( "f300" );
+        HomeBanking.closeall( f300 );
+    }
+}
+
+HomeBanking::CustServ
+{
+    if (EventObject != "f400")
+    {
+        HomeBanking.open( "f400" );
+        HomeBanking.closeall( f400 );
+    }
+}
+
+HomeBanking::AppTimeout
+{
+    subTimeout();
+}
+
+HomeBanking::LastWinClosed
+{
+    Boolean    bDone;
+
+    // Just in case last window was closed halfway through a Tandem transaction,
+    // complete it by doing a cancel.
+    Tandem.CancelConfirm();
+
+    bDone = false;
+
+    if (EventObject == "f30")
+    {
+        HomeBanking.InitObject("f24");
+        bDone = true;
+    }
+
+    if (EventObject == "f30d")
+    {
+        HomeBanking.InitObject("f24");
+        bDone = true;
+    }
+
+    if (EventObject == "f20")
+    {
+        HomeBanking.Alert("Thank you for using HomeBanking.");
+        HomeBanking.Exit();        // Exit Session
+        bDone = true;
+    }
+    if ( ! bDone)
+        subMainMenu();
+}
+
+HomeBanking::SignOff
+{
+    HomeBanking.InitObject("f24");
+}
+
+HomeBanking::QuitSession
+{
+    Tandem.Logout();
+    HomeBanking.Exit("noEventSend");        // Exit Session
+}
+
+// ================================================================
+// subQuitApp() ===================================================
+// ----------------------------------------------------------------
+subQuitApp
+{
+    Tandem.Logout();
+    HomeBanking.Exit();        // Exit Session
+}
+
+// ================================================================
+// subTimeout() ===================================================
+// ----------------------------------------------------------------
+subTimeout
+{
+    HomeBanking.Alert("Sorry, you have exceeded the maximum idle time.  Thank you for using HomeBanking.");
+    subQuitApp();
+}
+
+// ================================================================
+// subGoodBye() ===================================================
+// ----------------------------------------------------------------
+subGoodBye
+{
+    HomeBanking.Alert("Thank you for using HomeBanking.");
+    subQuitApp();
+}
+
+// ================================================================
+// form 24
+// ================================================================
+//
+// Description - Modal dialog asking user to download transaction
+//
+// ================================================================
+f24::Create
+{
+    f24.SetSysID("3541");
+
+    f24.AddEvent(event:"Action", item:"1101", f24.Yes);
+    f24.AddEvent(event:"Action", item:"1102", f24.No);
+}
+
+f24::Setup
+{
+    String sText;
+
+    // ***********************************
+    // * Get a list of all account which *
+    // * have had activity during this   *
+    // * session                         *
+    // ***********************************
+    lFromAccount.Clear();        
+    stResult = Tandem.GetActiveAccounts(lFromAccount);
+    
+    if (stResult == 0)
+    {
+        // **********************************
+        // * Display a message to the user  *
+        // * if there are any accounts that *
+        // * have had activity .            *
+        // **********************************
+        if (1 <= lFromAccount.Length())
+        {
+            f24.Open( );
+
+            sText = "Would you like a download or printed record of ";
+            sText.append("transactions captured during this HomeBanking session?");
+            f24.DisplayItem(field:"1", type:"text", sText);
+        }
+        else
+        {
+            HomeBanking.Close("f24");
+            subGoodBye();
+        }
+    }
+    else
+    {
+        HomeBanking.Close("f24");
+        subGoodBye();
+    }
+}
+
+f24::Yes
+{
+    // *************************************
+    // * If there is more than one account *
+    // * display the list                  *
+    // *************************************
+    if (1 < lFromAccount.Length())
+    {
+        
+        HomeBanking.Open( "f160b" );
+        HomeBanking.Closeall( f160b );
+    }
+    else
+    {
+        iSelAccount = 0;
+
+        HomeBanking.Open( "f162" );
+        HomeBanking.Closeall( f162 );
+    }
+}
+
+f24::No
+{
+    HomeBanking.Close("f24");
+    subGoodBye();
+}
+
+// ================================================================
+// form f20 =====================================================
+// ----------------------------------------------------------------
+// Comments : Signon form
+// 
+//
+// ================================================================
+f20::Create
+{
+    f20.SetSysID("3505");
+    f20.Title("HomeBanking Sign In");
+
+    f20.AddEvent(event:"Input", f20.Input);
+    f20.AddEvent(event:"Action", item:"1003", f20.Cancel);
+}
+ 
+f20::Setup
+{
+    String    field1;
+    Integer   iInvalidCount;
+
+    iInvalidCount = 0;
+}
+ 
+f20::Input
+{
+    sUser = EventData["1"];
+    sPIN = EventData["2"];
+
+    bDemoUser = false;
+
+    if (sUser == "demo")
+    {
+        if (sPIN == "bank")
+        {
+            bDemoUser = true;
+        }
+    }
+
+    stResult = Tandem.Login(sUser, sPIN, Name);
+
+    if (stResult == 0)
+    {
+        Tandem.RegisterTimeout(165);
+
+        if (bDemoUser)
+            HomeBanking.open("f30d");
+        else
+            HomeBanking.open("f30");
+
+
+        HomeBanking.close("f20");
+    }
+    else
+    {
+        if (stResult == 94) // [ATD_INVALID_LOGIN]
+        {
+            f20.DisplayItem(field:"2", type:"text", "");
+            f20.DisplayItem(field:"1", type:"text", "");
+
+            // This is due to the PIN-only mode the Tandem gets in -
+            // won't allow the user to re-enter the VCN.
+            Tandem.DropConnection();
+            Tandem.MakeConnection(Name);
+
+            subProcessError();
+        }
+        else
+	{
+            HomeBanking.close("f20");
+            subProcessError();
+	    subGoodBye();
+        }
+    }
+}
+
+f20::Cancel
+{
+    HomeBanking.close("f20");
+    HomeBanking.Exit();
+} 
+
+// ================================================================
+// form f30 =====================================================
+// ----------------------------------------------------------------
+//
+// ================================================================
+f30::Create
+{
+    f30.SetSysID("3502");
+    f30.Title("Main Menu");
+
+    f30.AddEvent(event:"Action", item:"1109", f30.GetMail);
+}
+
+f30::Setup
+{
+    Boolean bGotMail, bDisplayIcon;
+
+    f30.UseAppEvents(true);
+    bGotMail = false;
+    bDisplayIcon = false;
+
+    if (Speed == "9600")
+        iWindowSize = 160;
+
+    if (Speed == "14400")
+        iWindowSize = 240;
+
+    if (Speed == "28800")
+        iWindowSize = 480;
+
+    bGotMail = Tandem.CheckMail();
+    if ( bGotMail )
+        bDisplayIcon = true;
+
+    bGotMail = Tandem.CheckAnnouncements();
+    if ( bGotMail )
+        bDisplayIcon = true;
+
+    // If there is mail, display the mail icon.  Otherwise, the default
+    // graphics are displayed - no need to send '1-0-24000' anymore.
+    if ( bDisplayIcon )
+        f30.DisplayItem(type:"globalgraphic", field: "1", "1-0-23999" );
+//    else
+//       f30.DisplayItem(type:"globalgraphic", field: "1", "1-0-24000" );
+    
+
+    // The Relative ID for display of marketing text is 2 according to AOL. 
+}
+
+f30::GetMail
+{
+    HomeBanking.Open("f400");
+    HomeBanking.Close("f30");
+}
+
+// ================================================================
+// form f30d =====================================================
+// ----------------------------------------------------------------
+//
+// ================================================================
+f30d::Create
+{
+    f30d.SetSysID("3503");
+    f30d.Title("HomeBanking Demonstration Main Menu");
+
+    f30d.AddEvent(event:"Action", item:"1109", f30d.GetMail);
+}
+
+f30d::Setup
+{
+    bDemoUser = true;
+
+    f30d.UseAppEvents(true);
+
+    if (Speed == "9600")
+        iWindowSize = 160;
+
+    if (Speed == "14400")
+        iWindowSize = 240;
+
+    if (Speed == "28800")
+        iWindowSize = 480;
+
+    // The Relative ID for display of marketing text is 2 according to AOL. 
+}
+
+f30d::GetMail
+{
+    HomeBanking.Open("f400");
+    HomeBanking.Close("f30d");
+}
+
+// ================================================================
+// form f100 =====================================================
+// ----------------------------------------------------------------
+f100::Create
+{
+    f100.SetSysID("3507");
+    f100.Title("Account Information");
+
+    f100.AddEvent(event:"Action", item:"1013", f100.TodayBal);
+    f100.AddEvent(event:"Action", item:"1014", f100.PastChkg);
+    f100.AddEvent(event:"Action", item:"1015", f100.RecntPmt);
+    f100.AddEvent(event:"Action", item:"1016", f100.StopPmt);
+    f100.AddEvent(event:"Action", item:"1017", f100.ChgQCode);
+    f100.AddEvent(event:"Action", item:"1090", f100.Download);
+}
+
+f100::Setup
+{
+    f100.UseAppEvents(true);
+}
+
+f100::TodayBal
+{
+    HomeBanking.open("f110");
+    HomeBanking.close("f100");
+}
+
+f100::PastChkg
+{
+    HomeBanking.InitObject("f120");
+}
+
+f100::RecntPmt
+{
+    HomeBanking.InitObject("f130");
+}
+
+f100::StopPmt
+{
+    HomeBanking.InitObject("f140");
+}
+
+f100::ChgQCode
+{
+    HomeBanking.InitObject("f150");
+}
+
+f100::Download
+{
+    HomeBanking.InitObject("f160");
+}
+
+// ================================================================
+// form f200 =====================================================
+// ----------------------------------------------------------------
+f200::Create
+{
+    f200.SetSysID("3556");
+    f200.Title("Bill Payments");
+
+    f200.AddEvent(event:"Action", item:"1055", f200.PayBills);
+    f200.AddEvent(event:"Action", item:"1056", f200.RevPay);
+    f200.AddEvent(event:"Action", item:"1057", f200.StopPay);
+    f200.AddEvent(event:"Action", item:"1058", f200.SearchPay);
+    f200.AddEvent(event:"Action", item:"1059", f200.ChgQCode);
+    f200.AddEvent(event:"Action", item:"1061", f200.RemPay);
+}
+
+f200::Setup
+{
+    f200.UseAppEvents(true);
+}
+
+f200::PayBills
+{
+    lPayee.Clear();
+    stResult = Tandem.GetPayees(lPayee);
+
+    if (stResult == 0)
+        HomeBanking.initobject("f210");
+    else    
+        subProcessError();
+}
+
+f200::RevPay
+{
+    HomeBanking.InitObject("f220");
+}
+
+f200::StopPay
+{
+    HomeBanking.InitObject("f230");
+}
+
+f200::SearchPay
+{
+    HomeBanking.initobject("f240");
+}
+
+f200::ChgQCode
+{
+    HomeBanking.initobject("f250");
+}
+
+f200::RemPay
+{
+    HomeBanking.Initobject("f260");
+}
+
+// ================================================================
+// form f300 =====================================================
+// ----------------------------------------------------------------
+f300::Create
+{
+    f300.SetSysID("3528");
+    f300.Title("Transfer Funds");
+
+    f300.AddEvent(event:"Action", item:"1034", f300.MakeXfer);
+    f300.AddEvent(event:"Action", item:"1035", f300.RevXfer);
+    f300.AddEvent(event:"Action", item:"1036", f300.StopXfer);
+}
+
+f300::Setup
+{
+    f300.UseAppEvents(true);
+}
+
+f300::MakeXfer
+{
+    HomeBanking.InitObject("f310");
+}
+
+f300::RevXfer
+{
+    HomeBanking.InitObject("f320");
+}
+
+f300::StopXfer
+{
+    HomeBanking.InitObject("f330");
+}
+
+// ================================================================
+// form f400 =====================================================
+// ----------------------------------------------------------------
+f400::Create
+{
+    f400.SetSysID("3529");
+    f400.Title("Customer Service");
+
+      f400.AddEvent(event:"Action", item:"1037", f400.ReadAnnc);
+      f400.AddEvent(event:"Action", item:"1038", f400.ReadMesg);
+      f400.AddEvent(event:"Action", item:"1039", f400.SendMesg);
+      f400.AddEvent(event:"Action", item:"1040", f400.SendInq);
+      f400.AddEvent(event:"Action", item:"1041", f400.TellAddr);
+}
+
+f400::Setup
+{
+    f400.UseAppEvents(true);
+}
+
+f400::ReadAnnc
+{
+    String    sFrom, sTo, sSubject, sText;
+
+    if (bDemoUser)
+    {
+        HomeBanking.Alert("When there are announcements, this is where you would read them.");
+    }
+    else
+    {
+        stResult = Tandem.ReadAnnouncement( sFrom, sTo, sSubject, sText );
+        if (stResult == 0)
+        {
+            sBanner = "";
+            sBanner.append("Here is an announcement for all our Bank of America Customers.");
+            sBanner.append("\Subject: " , sSubject);
+
+            sEMessage =  sText;
+            HomeBanking.Open("f410");
+            HomeBanking.close("f400");
+
+        }
+        else
+            subProcessError();
+    }
+}
+
+f400::ReadMesg
+{
+    String    sFrom, sTo, sSubject, sText;
+
+    if (bDemoUser)
+    {
+        HomeBanking.Alert("When you email us with a question, we'll email you right back.");
+    }
+    else
+    {
+        stResult = Tandem.ReadMailMessage( sFrom, sTo, sSubject, sText );
+        if (stResult == 0)
+        {
+            sBanner = "";
+            sBanner.append("Here is a mail message from HomeBanking Customer Service.");
+            sBanner.append("\Subject: " , sSubject);
+
+            sEMessage = sText;
+        
+            HomeBanking.Open("f420");
+            HomeBanking.close("f400");
+        }
+        else
+            subProcessError();
+    }
+}
+
+f400::SendMesg
+{
+    if (bDemoUser)
+    {
+        HomeBanking.Alert("With this special email connection, you'll get a quick response to your questions.");
+    }
+    else
+    {
+        HomeBanking.Open("f430");
+        HomeBanking.close("f400");
+    }
+}
+
+f400::SendInq
+{
+    if (bDemoUser)
+    {
+        HomeBanking.Alert("If you ever have a question about a bill you've paid, this feature helps you easily explain it to us.");
+    }
+    else
+    {
+        HomeBanking.Open("f440");
+        HomeBanking.close("f400");
+    }
+}
+
+f400::TellAddr
+{
+    if (bDemoUser)
+    {
+        HomeBanking.Alert("This feature lets you easily change the mailing address of your HomeBanking accounts.");
+    }
+    else
+    {
+        HomeBanking.Open("f450");
+        HomeBanking.close("f400");
+    }
+}
+
